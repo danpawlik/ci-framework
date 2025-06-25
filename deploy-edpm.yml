@@ -150,7 +150,22 @@
       tags:
         - edpm
 
-- name: Import VA deployment playbook
-  ansible.builtin.import_playbook: playbooks/06-deploy-architecture.yml
-  tags:
-    - edpm
+- name: Deploy architecture
+  hosts: "{{ cifmw_target_host | default('localhost') }}"
+  gather_facts: false
+  tasks:
+    - name: Continue deploying architecture
+      ansible.builtin.import_role:
+        name: cifmw_setup
+        tasks_from: deploy_architecture.yml
+      tags:
+        - edpm
+
+- name: Validations workflow
+  hosts: "{{ cifmw_target_host | default('localhost') }}"
+  gather_facts: false
+  tasks:
+    - name: Run validations
+      ansible.builtin.include_role:
+        name: validations
+      when: cifmw_execute_validations | default(false) | bool
