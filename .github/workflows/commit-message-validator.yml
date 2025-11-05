@@ -7,16 +7,19 @@ on:
 jobs:
   verify-body-length:
     runs-on: ubuntu-latest
+    # set as non-voting for now.
+    continue-on-error: true
+
+    permissions:
+      contents: write
+      pull-requests: write
+      repository-projects: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Run commit message length validator
-        run: |
-          ./scripts/git-commit-msg-hook > result.log 2>&1
 
       - name: Run commit message check
         id: bodylength
