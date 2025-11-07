@@ -3,6 +3,11 @@ name: Check if commit message body is not too short
 on:
   pull_request:
     types: [opened, synchronize, edited, reopened]
+  pull_request_target:
+    branches: [ main ]
+
+permissions:
+  pull-requests: write
 
 jobs:
   verify-body-length:
@@ -12,7 +17,6 @@ jobs:
 
     permissions:
       contents: write
-      pull-requests: write
       repository-projects: write
 
     steps:
