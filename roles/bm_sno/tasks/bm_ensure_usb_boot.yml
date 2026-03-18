@@ -12,7 +12,7 @@
 
   rescue:
     - name: Fail if auto-enable is off
-      when: not (cifmw_bm_agent_enable_usb_boot | default(false)) | bool
+      when: not cifmw_bm_agent_enable_usb_boot | bool
       ansible.builtin.fail:
         msg: >-
           GenericUsbBoot is Disabled in BIOS. VirtualMedia cannot boot
