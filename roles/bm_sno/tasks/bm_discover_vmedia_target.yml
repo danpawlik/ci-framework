@@ -44,7 +44,7 @@
         map('join', ' -> ') | list }}
 
 - name: Validate user-provided VirtualMedia UEFI path
-  when: cifmw_bm_agent_vmedia_uefi_path | default('') | length > 0
+  when: cifmw_bm_agent_vmedia_uefi_path | length > 0
   ansible.builtin.assert:
     that:
       - cifmw_bm_agent_vmedia_uefi_path in _known_uefi_paths
@@ -56,7 +56,7 @@
         map('join', ' -> ') | list | join(', ') }}
 
 - name: Auto-discover VirtualMedia boot path
-  when: cifmw_bm_agent_vmedia_uefi_path | default('') | length == 0
+  when: cifmw_bm_agent_vmedia_uefi_path | length == 0
   block:
     - name: Find Virtual Optical Drive boot path
       ansible.builtin.set_fact:
@@ -71,7 +71,7 @@
         cifmw_bm_agent_vmedia_uefi_path: >-
           {{ item.json.UefiDevicePath | regex_replace('Unit\(0x1\)$', 'Unit(0x0)') }}
       when:
-        - cifmw_bm_agent_vmedia_uefi_path | default('') | length == 0
+        - cifmw_bm_agent_vmedia_uefi_path | length == 0
         - "'Virtual Floppy' in item.json.DisplayName | default('')"
       loop: "{{ _boot_options.results }}"
       loop_control:
@@ -81,14 +81,14 @@
       ansible.builtin.set_fact:
         cifmw_bm_agent_vmedia_uefi_path: "{{ item.json.UefiDevicePath }}"
       when:
-        - cifmw_bm_agent_vmedia_uefi_path | default('') | length == 0
+        - cifmw_bm_agent_vmedia_uefi_path | length == 0
         - "'Generic USB Boot' in item.json.DisplayName | default('')"
       loop: "{{ _boot_options.results }}"
       loop_control:
         label: "{{ item.json.DisplayName | default('unknown') }}"
 
     - name: Fail if no VirtualMedia boot path found
-      when: cifmw_bm_agent_vmedia_uefi_path | default('') | length == 0
+      when: cifmw_bm_agent_vmedia_uefi_path | length == 0
       ansible.builtin.fail:
         msg: >-
           Could not find any VirtualMedia boot path in UEFI boot options.
