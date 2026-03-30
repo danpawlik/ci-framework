@@ -18,8 +18,7 @@ export {{ item.upper() }}="{{ cifmw_devscripts_config[item] }}"
 
 {% for item in ['working_dir', 'assets_extra_folder', 'openshift_release_type',
     'openshift_version', 'cluster_name', 'base_domain', 'ntp_servers',
-    'external_bootstrap_mac', 'vm_extradisks',
-    'vm_extradisks_list', 'ssh_pub_key'] %}
+    'ssh_pub_key', 'external_bootstrap_mac', 'vm_extradisks', 'vm_extradisks_list' ] %}
 export {{ item.upper() }}="{{ cifmw_devscripts_config[item] }}"
 {% endfor %}
 # https://github.com/openshift-metal3/dev-scripts/blob/master/agent/docs/none-and-external-platform.md
