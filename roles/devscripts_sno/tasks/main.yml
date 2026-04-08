@@ -54,6 +54,9 @@
       ansible.builtin.include_role:
         name: "devscripts"
 
+    - name: Run post tasks
+      ansible.builtin.include_tasks: post.yml
+
 #  always:
 #    - name: Remove temporary virtualbmc instance
 #      ansible.builtin.include_role:

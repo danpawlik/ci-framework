@@ -1,0 +1,11 @@
+---
+- name: Create .kube dir
+  ansible.builtin.file:
+    path: "{{ ansible_user_dir }}/.kube"
+    state: directory
+
+- name: Copy kubeconfig
+  ansible.builtin.copy:
+    src: "{{ ansible_user_dir }}/src/github.com/openshift-metal3/dev-scripts/ocp/ocp/auth/kubeconfig"
+    dest: "{{ ansible_user_dir }}/config"
+    remote_src: true
