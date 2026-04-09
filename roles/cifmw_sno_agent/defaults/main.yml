@@ -1,0 +1,140 @@
+---
+# Copyright Red Hat, Inc.
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+# Path to pull-secret.json on the Ansible controller (or the host that runs
+# lookup('file') when using delegate_to). Required unless you override templates.
+cifmw_sno_pull_secret_src: null
+
+# Cluster identity
+cifmw_sno_cluster_name: sno
+cifmw_sno_base_domain: example.local
+
+# Rendezvous host IP (for agent-based installer); for SNO this is the node IP.
+cifmw_sno_rendezvous_ip: null
+
+# Host definitions for agent-config.yaml (MAC + interface required for discovery).
+# Example:
+# cifmw_sno_hosts:
+#   - hostname: sno-0
+#     interface_name: enp1s0
+#     mac_address: "52:54:00:12:34:56"
+#     role: master
+#     root_device_hint_device: /dev/vda
+#     network_config:
+#       dns-resolver:
+#         config:
+#           server:
+#             - 192.168.120.1
+#       interfaces:
+#         - name: enp1s0
+#           type: ethernet
+#           state: up
+#           ipv4:
+#             enabled: true
+#             dhcp: false
+#             address:
+#               - ip: 192.168.120.10
+#                 prefix-length: 24
+#       routes:
+#         config:
+#           - destination: 0.0.0.0/0
+#             next-hop-address: 192.168.120.1
+#             next-hop-interface: enp1s0
+cifmw_sno_hosts: []
+
+# Networking in install-config.yaml
+cifmw_sno_machine_network_cidr: "192.168.120.0/24"
+cifmw_sno_cluster_network_cidr: "10.128.0.0/14"
+cifmw_sno_cluster_host_prefix: 23
+cifmw_sno_service_network: "172.30.0.0/16"
+
+cifmw_sno_architecture: amd64
+cifmw_sno_hyperthreading: Enabled
+
+# Optional: baselineCapabilitySet (e.g. None) and additional capabilities for SNO.
+cifmw_sno_capabilities_baseline: null
+cifmw_sno_capabilities_additional: []
+
+# SSH public key content for core user (default: first ed25519 or rsa from controller user).
+cifmw_sno_ssh_public_key: null
+
+cifmw_sno_additional_ntp_sources: []
+
+# Workdir on the target host (the machine where openshift-install runs).
+cifmw_sno_data_dir: >-
+  {{
+    (
+      cifmw_basedir | default(ansible_user_dir ~ '/ci-framework-data'),
+      'sno-agent'
+    ) | ansible.builtin.path_join
+  }}
+cifmw_sno_workdir: >-
+  {{
+    (cifmw_sno_data_dir, cifmw_sno_cluster_name) | ansible.builtin.path_join
+  }}
+
+cifmw_sno_openshift_install_binary: openshift-install
+
+# When the binary is not in PATH, download from mirror.openshift.com (requires
+# outbound HTTPS on the install host). Set to false on disconnected installs and
+# provide cifmw_sno_openshift_install_binary as a full path instead.
+cifmw_sno_openshift_install_download: true
+
+# OCP client version directory on the mirror, e.g. 4.16.12 or stable-4.16
+cifmw_sno_openshift_client_version: stable-4.16
+
+# Override full tarball URL (optional). When empty, built from mirror + version.
+cifmw_sno_openshift_install_tarball_url: null
+
+# Cache directory on the install host (shared across cluster names).
+cifmw_sno_openshift_install_tools_dir: >-
+  {{
+    (cifmw_sno_data_dir, 'openshift-install') | ansible.builtin.path_join
+  }}
+
+cifmw_sno_openshift_client_mirror_arch: >-
+  {{
+    'arm64'
+    if ansible_architecture is defined and ansible_architecture in ['aarch64', 'arm64']
+    else 'x86_64'
+  }}
+
+cifmw_sno_openshift_install_tarball_basename: >-
+  {{
+    'openshift-install-linux-arm64.tar.gz'
+    if ansible_architecture is defined and ansible_architecture in ['aarch64', 'arm64']
+    else 'openshift-install-linux.tar.gz'
+  }}
+
+# If set, passed to openshift-install via environment (pin exact payload).
+cifmw_sno_release_image_override: null
+
+cifmw_sno_log_level: info
+
+# Build the agent ISO (openshift-install agent create image).
+cifmw_sno_build_iso: true
+
+# After you boot the target from the ISO, run wait-for on the install host.
+cifmw_sno_wait_install_complete: false
+cifmw_sno_install_timeout_sec: 7200
+
+cifmw_sno_dry_run: false
+
+# Extra environment variables for openshift-install (dict).
+cifmw_sno_install_environment: {}
+
+# Run bootstrap wait before install-complete (agent-based flow).
+cifmw_sno_wait_bootstrap_complete: true

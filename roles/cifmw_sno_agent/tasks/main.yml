@@ -1,0 +1,95 @@
+---
+# Copyright Red Hat, Inc.
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+- name: Converge defaults and validate inputs
+  ansible.builtin.include_tasks: validate.yml
+  tags:
+    - always
+
+- name: Build environment for openshift-install
+  ansible.builtin.set_fact:
+    _cifmw_sno_install_env: >-
+      {{
+        cifmw_sno_install_environment | default({}, true) | combine(
+          {'OPENSHIFT_INSTALL_RELEASE_IMAGE_OVERRIDE': cifmw_sno_release_image_override}
+          if (cifmw_sno_release_image_override | default('', true) | string | length) > 0
+          else {}
+        )
+      }}
+
+- name: Ensure workdir exists
+  ansible.builtin.file:
+    path: "{{ cifmw_sno_workdir }}"
+    state: directory
+    mode: "0700"
+  tags:
+    - cifmw_sno_prepare
+
+- name: Copy pull secret into workdir for openshift-install
+  ansible.builtin.copy:
+    src: "{{ cifmw_sno_pull_secret_src }}"
+    dest: "{{ cifmw_sno_workdir }}/pull-secret.json"
+    mode: "0600"
+  tags:
+    - cifmw_sno_prepare
+
+- name: Discover SSH public key when not provided explicitly
+  when: cifmw_sno_ssh_public_key is none or (cifmw_sno_ssh_public_key | length) == 0
+  block:
+    - name: Stat default SSH public keys on install host
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - "{{ ansible_user_dir }}/.ssh/id_ed25519.pub"
+        - "{{ ansible_user_dir }}/.ssh/id_rsa.pub"
+      register: _cifmw_sno_ssh_stat
+
+    - name: Resolve SSH public key for install-config
+      when: (_cifmw_sno_ssh_stat.results | selectattr('stat.exists') | list | length) > 0
+      ansible.builtin.set_fact:
+        cifmw_sno_ssh_public_key: "{{ lookup('file', (_cifmw_sno_ssh_stat.results | selectattr('stat.exists') | map(attribute='item') | first)) }}"
+
+    - name: Fail if no SSH public key was found
+      ansible.builtin.assert:
+        that:
+          - cifmw_sno_ssh_public_key is defined
+          - (cifmw_sno_ssh_public_key | length) > 0
+        fail_msg: >-
+          Set cifmw_sno_ssh_public_key or add {{ ansible_user_dir }}/.ssh/id_ed25519.pub
+          or id_rsa.pub on the install host.
+
+- name: Render install-config and agent-config
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ cifmw_sno_workdir }}/{{ item.dest }}"
+    mode: "0600"
+  loop:
+    - { src: install-config.yaml.j2, dest: install-config.yaml }
+    - { src: agent-config.yaml.j2, dest: agent-config.yaml }
+  tags:
+    - cifmw_sno_prepare
+
+- name: Build cluster manifests and agent ISO
+  when: cifmw_sno_build_iso | bool
+  ansible.builtin.include_tasks: build_iso.yml
+  tags:
+    - cifmw_sno_build
+
+- name: Wait for install complete
+  when: cifmw_sno_wait_install_complete | bool
+  ansible.builtin.include_tasks: wait_install.yml
+  tags:
+    - cifmw_sno_wait

@@ -1,0 +1,64 @@
+---
+# Copyright Red Hat, Inc.
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+- name: Ensure openshift-install is available on the install host
+  ansible.builtin.include_tasks: ensure_openshift_install.yml
+
+- name: Create cluster manifests (agent)
+  when: not (cifmw_sno_dry_run | bool)
+  ansible.builtin.command:
+    chdir: "{{ cifmw_sno_workdir }}"
+    cmd: >-
+      {{ _cifmw_sno_openshift_install_cmd }} agent create cluster-manifests
+      --dir {{ cifmw_sno_workdir }}
+      --log-level {{ cifmw_sno_log_level }}
+  environment: "{{ _cifmw_sno_install_env }}"
+  register: _cifmw_sno_agent_manifests
+
+- name: Create agent ISO image
+  when: not (cifmw_sno_dry_run | bool)
+  ansible.builtin.command:
+    chdir: "{{ cifmw_sno_workdir }}"
+    cmd: >-
+      {{ _cifmw_sno_openshift_install_cmd }} agent create image
+      --dir {{ cifmw_sno_workdir }}
+      --log-level {{ cifmw_sno_log_level }}
+  environment: "{{ _cifmw_sno_install_env }}"
+  register: _cifmw_sno_agent_image
+
+- name: Skip openshift-install when dry run is enabled
+  when: cifmw_sno_dry_run | bool
+  ansible.builtin.debug:
+    msg: >-
+      cifmw_sno_dry_run=true: skipped agent create cluster-manifests / create image.
+      Configs are under {{ cifmw_sno_workdir }}.
+
+- name: Find generated agent ISO
+  ansible.builtin.find:
+    paths: "{{ cifmw_sno_workdir }}"
+    patterns:
+      - agent.x86_64.iso
+      - agent.aarch64.iso
+      - '*.iso'
+    file_type: file
+  register: _cifmw_sno_iso_find
+
+- name: Report ISO path
+  ansible.builtin.debug:
+    msg: >-
+      Boot the target VM from the agent ISO, then optionally re-run the playbook
+      with cifmw_sno_build_iso=false and cifmw_sno_wait_install_complete=true.
+      ISO candidates: {{ _cifmw_sno_iso_find.files | map(attribute='path') | list }}

@@ -1,0 +1,77 @@
+---
+# Copyright Red Hat, Inc.
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+- name: Assert pull secret path is provided
+  ansible.builtin.assert:
+    that:
+      - cifmw_sno_pull_secret_src is not none
+      - (cifmw_sno_pull_secret_src | string | length) > 0
+    fail_msg: >-
+      Set cifmw_sno_pull_secret_src to pull-secret.json (e.g. from group_vars).
+
+- name: Stat pull secret on controller
+  ansible.builtin.stat:
+    path: "{{ cifmw_sno_pull_secret_src }}"
+  register: _cifmw_sno_pull_stat
+  delegate_to: localhost
+
+- name: Assert pull secret file exists (controller)
+  ansible.builtin.assert:
+    that:
+      - _cifmw_sno_pull_stat.stat.exists | bool
+      - _cifmw_sno_pull_stat.stat.isreg | bool
+    fail_msg: >-
+      cifmw_sno_pull_secret_src={{ cifmw_sno_pull_secret_src }} not found on the
+      Ansible controller.
+
+- name: Assert rendezvous IP is set
+  ansible.builtin.assert:
+    that:
+      - cifmw_sno_rendezvous_ip is not none
+      - (cifmw_sno_rendezvous_ip | string | length) > 0
+    fail_msg: >-
+      Set cifmw_sno_rendezvous_ip to the IP of the single node (SNO).
+
+- name: Assert at least one host is defined for agent discovery
+  ansible.builtin.assert:
+    that:
+      - cifmw_sno_hosts is iterable
+      - (cifmw_sno_hosts | length) > 0
+    fail_msg: >-
+      Set cifmw_sno_hosts with hostname, interface_name, and mac_address per node.
+
+- name: Validate each host has required keys
+  ansible.builtin.assert:
+    that:
+      - (item.hostname | default('') | length) > 0
+      - (item.interface_name | default('') | length) > 0
+      - (item.mac_address | default('') | length) > 0
+    fail_msg: >-
+      Each cifmw_sno_hosts entry needs hostname, interface_name, and mac_address.
+  loop: "{{ cifmw_sno_hosts }}"
+  loop_control:
+    label: "{{ item.hostname | default('missing-hostname') }}"
+
+- name: Assert OpenShift client version when auto-download is enabled
+  when:
+    - cifmw_sno_openshift_install_download | bool
+    - (cifmw_sno_build_iso | default(true) | bool) or (cifmw_sno_wait_install_complete | default(false) | bool)
+  ansible.builtin.assert:
+    that:
+      - (cifmw_sno_openshift_client_version | default('', true) | string | length) > 0
+    fail_msg: >-
+      Set cifmw_sno_openshift_client_version (e.g. 4.16.12 or stable-4.16) when
+      cifmw_sno_openshift_install_download is true.

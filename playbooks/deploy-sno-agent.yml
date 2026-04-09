@@ -1,0 +1,19 @@
+---
+# Build Single Node OpenShift (SNO) install media using the OpenShift agent-based
+# installer. Run this against the host where openshift-install is installed (often
+# the same Linux VM you SSH to, e.g. zuul@192.168.120.10). Attach the generated
+# ISO to the target machine, boot once, then optionally re-run with
+# cifmw_sno_build_iso=false and cifmw_sno_wait_install_complete=true.
+#
+# Example (single host in inventory = install host, needs openshift-install in PATH):
+#   ansible-playbook -i '192.168.120.10,' playbooks/deploy-sno-agent.yml \
+#     -e @scenarios/reproducers/sno-agent-example.yml \
+#     -e ansible_user=zuul
+#
+# Pull secret path (cifmw_sno_pull_secret_src) is read from the Ansible controller.
+
+- name: Agent-based SNO - render config and build ISO
+  hosts: all
+  gather_facts: true
+  roles:
+    - role: cifmw_sno_agent

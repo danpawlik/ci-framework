@@ -1,0 +1,32 @@
+apiVersion: v1alpha1
+kind: AgentConfig
+metadata:
+  name: {{ cifmw_sno_cluster_name }}
+rendezvousIP: {{ cifmw_sno_rendezvous_ip }}
+{% if cifmw_sno_additional_ntp_sources | default([]) | length > 0 %}
+additionalNTPSources:
+{% for ntp in cifmw_sno_additional_ntp_sources %}
+  - {{ ntp }}
+{% endfor %}
+{% endif %}
+hosts:
+{% for h in cifmw_sno_hosts %}
+  - hostname: {{ h.hostname }}
+    role: {{ h.role | default('master') }}
+{% if h.root_device_hints is defined %}
+    rootDeviceHints:
+{% for rk, rv in h.root_device_hints.items() %}
+      {{ rk }}: {{ rv }}
+{% endfor %}
+{% elif h.root_device_hint_device is defined %}
+    rootDeviceHints:
+      deviceName: {{ h.root_device_hint_device }}
+{% endif %}
+    interfaces:
+      - name: {{ h.interface_name }}
+        macAddress: '{{ h.mac_address }}'
+{% if h.network_config is defined %}
+    networkConfig:
+{{ h.network_config | to_nice_yaml(indent=2) | indent(6) }}
+{% endif %}
+{% endfor %}

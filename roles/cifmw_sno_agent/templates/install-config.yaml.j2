@@ -1,0 +1,39 @@
+apiVersion: v1
+baseDomain: {{ cifmw_sno_base_domain }}
+metadata:
+  name: {{ cifmw_sno_cluster_name }}
+compute:
+  - architecture: {{ cifmw_sno_architecture }}
+    hyperthreading: {{ cifmw_sno_hyperthreading }}
+    name: worker
+    replicas: 0
+controlPlane:
+  architecture: {{ cifmw_sno_architecture }}
+  hyperthreading: {{ cifmw_sno_hyperthreading }}
+  name: master
+  replicas: 1
+networking:
+  clusterNetwork:
+    - cidr: {{ cifmw_sno_cluster_network_cidr }}
+      hostPrefix: {{ cifmw_sno_cluster_host_prefix }}
+  machineNetwork:
+    - cidr: {{ cifmw_sno_machine_network_cidr }}
+  networkType: OVNKubernetes
+  serviceNetwork:
+    - {{ cifmw_sno_service_network }}
+platform:
+  none: {}
+pullSecret: '{{ lookup("file", cifmw_sno_pull_secret_src) }}'
+sshKey: |
+  {{ cifmw_sno_ssh_public_key | trim }}
+publish: External
+{% if cifmw_sno_capabilities_baseline is not none and (cifmw_sno_capabilities_baseline | string | length) > 0 %}
+capabilities:
+  baselineCapabilitySet: {{ cifmw_sno_capabilities_baseline | to_json }}
+{% if cifmw_sno_capabilities_additional | default([]) | length > 0 %}
+  additionalEnabledCapabilities:
+{% for cap in cifmw_sno_capabilities_additional %}
+    - {{ cap | to_json }}
+{% endfor %}
+{% endif %}
+{% endif %}

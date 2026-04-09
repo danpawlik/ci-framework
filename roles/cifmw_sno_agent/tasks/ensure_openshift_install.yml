@@ -1,0 +1,114 @@
+---
+# Copyright Red Hat, Inc.
+# All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+
+- name: Probe openshift-install from configured command or PATH
+  ansible.builtin.command:
+    cmd: "{{ cifmw_sno_openshift_install_binary }} version"
+  register: _cifmw_sno_inst_probe
+  failed_when: false
+  changed_when: false
+
+- name: Use configured openshift-install when it runs
+  when: _cifmw_sno_inst_probe.rc == 0
+  ansible.builtin.set_fact:
+    _cifmw_sno_openshift_install_cmd: "{{ cifmw_sno_openshift_install_binary }}"
+
+- name: Probe openshift-install from role cache directory
+  when: _cifmw_sno_inst_probe.rc != 0
+  ansible.builtin.command:
+    cmd: "{{ cifmw_sno_openshift_install_tools_dir }}/openshift-install version"
+  register: _cifmw_sno_inst_cache_probe
+  failed_when: false
+  changed_when: false
+
+- name: Use cached openshift-install from tools directory
+  when:
+    - _cifmw_sno_inst_probe.rc != 0
+    - (_cifmw_sno_inst_cache_probe.rc | default(1)) == 0
+  ansible.builtin.set_fact:
+    _cifmw_sno_openshift_install_cmd: "{{ cifmw_sno_openshift_install_tools_dir }}/openshift-install"
+
+- name: Download openshift-install or fail with guidance
+  when:
+    - _cifmw_sno_inst_probe.rc != 0
+    - (_cifmw_sno_inst_cache_probe.rc | default(1)) != 0
+  block:
+    - name: Fail when openshift-install is missing and auto-download is disabled
+      when: not (cifmw_sno_openshift_install_download | bool)
+      ansible.builtin.fail:
+        msg: >-
+          openshift-install was not found (tried
+          {{ cifmw_sno_openshift_install_binary }} and
+          {{ cifmw_sno_openshift_install_tools_dir }}/openshift-install).
+          Install openshift-install on this host, set
+          cifmw_sno_openshift_install_binary to a full path, or enable
+          cifmw_sno_openshift_install_download=true and set
+          cifmw_sno_openshift_client_version (e.g. 4.16.12 or stable-4.16).
+
+    - name: Ensure openshift-install tools directory exists
+      ansible.builtin.file:
+        path: "{{ cifmw_sno_openshift_install_tools_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Resolve openshift-install tarball URL
+      ansible.builtin.set_fact:
+        _cifmw_sno_inst_tarball_url: >-
+          {{
+            cifmw_sno_openshift_install_tarball_url
+            if (cifmw_sno_openshift_install_tarball_url | default('', true) | string | length) > 0
+            else
+            ('https://mirror.openshift.com/pub/openshift-v4/' ~
+             cifmw_sno_openshift_client_mirror_arch ~
+             '/clients/ocp/' ~
+             cifmw_sno_openshift_client_version ~
+             '/' ~
+             cifmw_sno_openshift_install_tarball_basename)
+          }}
+
+    - name: Download openshift-install tarball
+      ansible.builtin.get_url:
+        url: "{{ _cifmw_sno_inst_tarball_url }}"
+        dest: "{{ cifmw_sno_openshift_install_tools_dir }}/{{ cifmw_sno_openshift_install_tarball_basename }}"
+        mode: "0644"
+        timeout: 120
+
+    - name: Unarchive openshift-install
+      ansible.builtin.unarchive:
+        src: "{{ cifmw_sno_openshift_install_tools_dir }}/{{ cifmw_sno_openshift_install_tarball_basename }}"
+        dest: "{{ cifmw_sno_openshift_install_tools_dir }}"
+        remote_src: true
+        creates: "{{ cifmw_sno_openshift_install_tools_dir }}/openshift-install"
+
+    - name: Ensure openshift-install is executable
+      ansible.builtin.file:
+        path: "{{ cifmw_sno_openshift_install_tools_dir }}/openshift-install"
+        mode: "0755"
+        state: file
+
+    - name: Set openshift-install command to downloaded binary
+      ansible.builtin.set_fact:
+        _cifmw_sno_openshift_install_cmd: "{{ cifmw_sno_openshift_install_tools_dir }}/openshift-install"
+
+- name: Record openshift-install version
+  ansible.builtin.command:
+    cmd: "{{ _cifmw_sno_openshift_install_cmd }} version"
+  register: _cifmw_sno_installer_version
+  changed_when: false
+
+- name: Show openshift-install version
+  ansible.builtin.debug:
+    msg: "{{ _cifmw_sno_installer_version.stdout_lines | default([]) }}"
