@@ -42,12 +42,21 @@
         combine(_install_yamls_repos | default({})) |
         combine(cifmw_edpm_prepare_extra_vars | default({}))
       }}
-    cifmw_edpm_prepare_make_openstack_env: |
-      {% if cifmw_operator_build_meta_name is defined and cifmw_operator_build_meta_name in operators_build_output %}
-      OPENSTACK_IMG: {{ operators_build_output[cifmw_operator_build_meta_name].image_catalog }}
-      {% endif %}
-    cifmw_edpm_prepare_make_openstack_deploy_prep_env: |
-      CLEANUP_DIR_CMD: "true"
+    cifmw_edpm_prepare_make_openstack_env: >-
+      {{
+        cifmw_edpm_prepare_make_openstack_env | default({}) |
+        combine(
+          {
+            'OPENSTACK_IMG': operators_build_output[cifmw_operator_build_meta_name].image_catalog,
+          } if (cifmw_operator_build_meta_name is defined and cifmw_operator_build_meta_name in operators_build_output)
+          else {}
+        )
+      }}
+    cifmw_edpm_prepare_make_openstack_deploy_prep_env: >-
+      {{
+        cifmw_edpm_prepare_make_openstack_deploy_prep_env | default({}) |
+        combine({'CLEANUP_DIR_CMD': 'true'})
+      }}
     cifmw_edpm_prepare_operators_build_output: "{{ operators_build_output }}"
 
 - name: Prepare storage in CRC
@@ -81,7 +90,7 @@
 - name: OpenStack meta-operator installation
   vars:
     make_openstack_env: "{{ cifmw_edpm_prepare_common_env |
-      combine(cifmw_edpm_prepare_make_openstack_env | from_yaml)}}"
+      combine(cifmw_edpm_prepare_make_openstack_env)}}"
     make_openstack_dryrun: "{{ cifmw_edpm_prepare_dry_run }}"
   ansible.builtin.include_role:
     name: 'install_yamls_makes'
@@ -215,7 +224,7 @@
 - name: Prepare OpenStack control plane CR
   vars:
     make_openstack_deploy_prep_env: "{{ cifmw_edpm_prepare_common_env |
-      combine(cifmw_edpm_prepare_make_openstack_deploy_prep_env | from_yaml)}}"
+      combine(cifmw_edpm_prepare_make_openstack_deploy_prep_env)}}"
     make_openstack_deploy_prep_dryrun: "{{ cifmw_edpm_prepare_dry_run }}"
   ansible.builtin.include_role:
     name: 'install_yamls_makes'
